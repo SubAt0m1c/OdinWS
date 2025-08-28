@@ -28,16 +28,20 @@ pub async fn handle_client(ws: WebSocket, lobby_id: String, lobbies: LobbyMap) {
     let (mut tx_ws, mut rx_ws) = ws.split();
 
     let tx = lobbies.entry(lobby_id.clone()).or_insert_with(|| {
+        // println!("New lobby: {}", lobby_id);
         broadcast::channel::<String>(100).0
     }).value_mut().clone();
 
     let mut rx = tx.subscribe();
+
+    // println!("New client connected: {}", lobby_id);
 
     loop {
         tokio::select! {
             msg = rx_ws.next() => {
                 match msg {
                     Some(Ok(m)) if m.is_text() => {
+                        // println!("Received in {}: {}", lobby_id, m.to_str().unwrap());
                         let _ = tx.send(m.to_str().unwrap().to_owned());
                     }
                     Some(Ok(_)) => {}
@@ -61,6 +65,7 @@ pub async fn handle_client(ws: WebSocket, lobby_id: String, lobbies: LobbyMap) {
 
     drop(rx);
     if tx.receiver_count() == 0 {
+        // println!("closing lobby: {}", lobby_id);
         lobbies.remove(&lobby_id);
     }
 }
